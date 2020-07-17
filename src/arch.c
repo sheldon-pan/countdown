@@ -141,7 +141,7 @@ void read_arch_info()
     PMPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
   }
 
-  // Nominal frequency
+  // Nominal frequency 读取标准频率
   read_msr_by_idx(sched_getcpu(), SMSR_PLATFORM_INFO, &platform_info);
   cntd->arch.nominal_freq = ((platform_info >> 0x8) & 0xFF) * 100.0;
   cntd->arch.pstate[NOM] = cntd->arch.nominal_freq / 100.0;
@@ -150,11 +150,12 @@ void read_arch_info()
   cntd->ru = (struct rapl_units *) libmsr_calloc(num_sockets(), sizeof(struct rapl_units));
   get_rapl_power_unit(cntd->ru);
 }
+//读取turbo的信息
 
 void read_arch_turbo_info()
 {
   int i;
-
+ //如果每个socket的核心超过24那么turbo的ratio固定？ 
   if((cntd->arch.cores/cntd->arch.sockets) > 24)
   {
     fprintf(stderr, "Error: <countdown> Fix turbo ratio discovery in: arch.c - read_arch_turbo_info()!\n");

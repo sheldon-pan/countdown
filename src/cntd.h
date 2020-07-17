@@ -794,6 +794,8 @@ typedef struct
 	uint64_t pcu3;
 } CNTD_Socket_t;
 
+
+//CNTD_Group_t定义了通信体中的各类信息，主要为了当前节点的子通信域
 typedef struct
 {
 	MPI_Group mpi_group;
@@ -803,6 +805,9 @@ typedef struct
 	int world_rank;
 	int *world_ranks;
 } CNTD_Group_t;
+
+
+//CNTD_Comm_t记录了通信域的各类信息
 
 typedef struct
 {
@@ -839,9 +844,12 @@ typedef struct
 	uint64_t pmc[8][2];
 } CNTD_Call_t;
 
+//cndt_t的数据结构，也是这个cntd算法中的核心数据结构
+//用来记录硬件和进程信息
+//以及输出的trace event信息
 typedef struct
 {
-	// Architecture
+	// Architecture 体系
 	CNTD_Arch_t arch;
 
 	// Timing
@@ -866,12 +874,12 @@ typedef struct
 	uint64_t group_count;
 	uint64_t group_mem_limit;
 
-	// Communicators
+	// Communicators 内存限制
 	CNTD_Comm_t *comm;
 	uint64_t comm_count;
 	uint64_t comm_mem_limit;
 
-	// Call
+	// Call 调用的计数
 	CNTD_Call_t call[2];
 	int curr_call;
 	int prev_call;
@@ -919,11 +927,13 @@ typedef struct
 	int pcu;
 	int debug_metrics;
 
-	// RAPL
+	// RAPL的状态，两个指针指向结构体 rapl_units和rapl_data，之后对flag和ri_stat定义
+	//rapl的init stat用来记录rapl的初始化状态
 	struct rapl_units *ru;
 	struct rapl_data *rd;
 	uint64_t *rapl_flags;
 	int ri_stat;
+	
 
 	// File descriptors
 	char log_dir[STRING_SIZE];
@@ -932,6 +942,8 @@ typedef struct
 	FILE *fd_time_trace;
 } CNTD_t;
 
+
+//cntd数据结构的声明
 CNTD_t *cntd;
 
 // HEADERS

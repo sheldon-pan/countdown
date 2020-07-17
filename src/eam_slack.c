@@ -33,8 +33,10 @@
 #include "cntd.h"
 
 static CNTD_Call_t *callback_call;
-
+//eam slack的算法只是考虑了wait 和cntd 两种bariier。而eam算法是加入了点对点以及集合通信的
+//barrier并且通过判断，call的类型来决定是否执行算法
 static void eam_slack_policy_scheduler(CNTD_Call_t *call)
+
 {
 	if(is_wait_barrier(call->mpi_type) ||
 	   is_cntd_barrier(call->mpi_type))

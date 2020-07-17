@@ -58,16 +58,18 @@ static uint64_t RDPMC(unsigned pmc)
 	return ((unsigned long)a) | (((unsigned long)d) << 32);
 }
 
+
+//加入profile  这里使用RDPMC事件来加profiling 为了扩展而做的框架？ 
 void add_profiling(CNTD_Call_t *call, int when)
 {
 	int i;
 	struct timespec epoch;
 
-	// Timing
+	// Timing 时间戳
 	call->tsc[when] = READ_TSC();
 	clock_gettime(CLOCK_TYPE, &epoch);
-
-	// Fixed
+ 
+	// Fixed 固定的PMC事件记录
 	call->fix[0][when] = RDPMC(RDPMC_INSTR);
 	call->fix[1][when] = RDPMC(RDPMC_CLKCURR);
 	call->fix[2][when] = RDPMC(RDPMC_CLKREF);
@@ -267,7 +269,7 @@ void update_call()
 		for(i = 0; i < 8; i++)
 			cntd->rank->pmc[MPI][i] += diff_48(curr_call->pmc[i][END], curr_call->pmc[i][START]);
 
-	// CNTD impact
+	// CNTD impact 超时判定
 	double timing_gt = mpi_time_duration - cntd->timeout;
 	if(timing_gt > 0)
 		cntd->rank->timing[GT_TIMEOUT] += timing_gt;

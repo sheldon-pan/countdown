@@ -159,7 +159,7 @@ int is_p2p_barrier(MPI_Type_t mpi_type)
 	else
 		return FALSE;
 }
-
+//is_cntd_barrier通过mpi_type 来输出cntd所考虑的barrier类型
 int is_cntd_barrier(MPI_Type_t mpi_type)
 {
 	switch(mpi_type)
@@ -229,7 +229,8 @@ int is_cntd_barrier(MPI_Type_t mpi_type)
 			break;
 	}
 }
-
+//is_wait_barrier函数的判断是通过单边通信的操作锁 以及barrier init finalize 还有各类wait
+//来判断是否是wait类型的barrier
 int is_wait_barrier(MPI_Type_t mpi_type)
 {
 	switch(mpi_type)

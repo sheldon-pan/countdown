@@ -36,7 +36,7 @@ CNTD_Rank_t* create_shmem_rank(const char shmem_name[], int num_elem)
 {
     int fd;
     CNTD_Rank_t *shmem_ptr;
-
+    
     fd = shm_open(shmem_name, O_RDWR | O_CREAT, 0660);
     if(fd == -1)
     {

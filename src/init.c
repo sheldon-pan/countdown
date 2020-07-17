@@ -34,40 +34,49 @@
 
 static void init_libmsr()
 {
+	//初始化libmsr，获取节点的hostname
 	char hostname[STRING_SIZE];
 	gethostname(hostname, sizeof(hostname));
 
-	// Init library
+	// Init library 初始化libmrsr，通过msr-safe来获取对msr的访问
 	if(init_msr())
 	{
 		libmsr_error_handler("Unable to initialize libmsr", LIBMSR_ERROR_MSR_INIT, hostname, __FILE__, __LINE__);
 		PMPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
 	}
-
+	//rapl的状态
 	cntd->ri_stat = rapl_init(&cntd->rd, &cntd->rapl_flags);
+	//通过rapl状态判断，输出是否可以初始化RAPL,主要是用来调整频率，这里不涉及具体的频率数值
+	//而是通过最高频率和最低频率进行切换
 	if (cntd->ri_stat < 0)
 	{
 		libmsr_error_handler("Unable to initialize rapl", LIBMSR_ERROR_RAPL_INIT, hostname, __FILE__, __LINE__);
 		PMPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
 	}
+	//开启固定计数器
 
 	enable_fixed_counters();
+	//开启PMC事件记录
 	enable_pmc();
 }
 
+
+//libmsr结束初始化
 static void finalize_libmsr()
 {
 	//disable_fixed_counters();
 	//clear_all_pmc();
 	finalize_msr();
 }
-
+//获取PC的环境信息，以及通过export来预先定义的输出目录，算法选择，以及分析
+//又学到一招。如果需要带入很多变量的话，可以使用linux 的export在外面设置环境变量
+//然后在程序中进行环境变量的读取
 static void read_env()
 {
-	// Outputs
+	// Outputs 输出文件目录
 	char *output_dir = getenv("CNTD_OUT_DIR");
 
-	// Actions
+	// Actions 算法选择
 	char *barrier_str = getenv("CNTD_BARRIER");
 	char *fermata_str = getenv("CNTD_FERMATA");
 	char *andante_str = getenv("CNTD_ANDANTE");
@@ -75,35 +84,38 @@ static void read_env()
 	char *eam_slack_str = getenv("CNTD_EAM_SLACK");
 	char *eam_call_str = getenv("CNTD_EAM_CALL");
 
-	// P-state
+	// P-state 
+	//这个是在外面进行设置的CNTD_MAX_PSTATE=26代表最高频率设置2.6GHz
 	char *max_pstate_str = getenv("CNTD_MAX_PSTATE");
+	//这个是在外面进行设置的CNTD_MAX_PSTATE=12代表最高频率设置1.2GHz
 	char *min_pstate_str = getenv("CNTD_MIN_PSTATE");
 
-	// Analisys
+	// Analisys 各类算法的输出
 	char *fermata_analysis_str = getenv("CNTD_FERMATA_ANALYSIS");
 	char *andante_analysis_str = getenv("CNTD_ANDANTE_ANALYSIS");
 	char *adagio_analysis_str = getenv("CNTD_ADAGIO_ANALYSIS");
 	char *eam_slack_analysis_str = getenv("CNTD_EAM_SLACK_ANALYSIS");
 	char *eam_call_analysis_str = getenv("CNTD_EAM_CALL_ANALYSIS");
 
-	// Tracing
+	// Tracing time event task的三类跟踪输出
 	char *time_trace_str = getenv("CNTD_TIME_TRACE");
 	char *event_trace_str = getenv("CNTD_EVENT_TRACE");
 	char *task_trace_str = getenv("CNTD_TASK_TRACE");
 
-	// Advanced metrics
+	// Advanced metrics PMC事件的跟踪，PCU事件的跟踪以及debug的跟踪
 	char *pmc_str = getenv("CNTD_PMC");
 	char *pcu_str = getenv("CNTD_PCU");
 	char *debug_metrics_str = getenv("CNTD_DEBUG_METRICS");
 
-	// Timeout
+	// Timeout 超时事件的设定energy-aware MPI policies 中倒计时的时间单位是ms，默认500us 
 	char *timeout_str = getenv("CNTD_TIMEOUT");
 
-	// Read env variables
+	// Read env variables 获取env 的变量
 	if(output_dir != NULL && strcmp(output_dir, "") != 0)
 		strncpy(cntd->log_dir, output_dir, strlen(output_dir));
+		//将外部环境变量设置的logdir 记录到cntd的结构体中
 	else
-	{
+	{	//如果没有设置输出文件夹，那么将获取当前的绝对文件目录
 		char *ret = getcwd(cntd->log_dir, STRING_SIZE);
 		if(ret == NULL)
 		{
@@ -111,13 +123,14 @@ static void read_env()
 			PMPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
 		}
 	}
+	//初始化完毕之后进行一次barrier同步
 	PMPI_Barrier(MPI_COMM_WORLD);
 
-	// Create log dir
+	// Create log dir 在根节点上创建log dir
 	if(cntd->rank->my_rank == CNTD_MPI_ROOT)
 		create_dir(cntd->log_dir);
 	PMPI_Barrier(MPI_COMM_WORLD);
-
+	//cntd结构体中给timeout 赋值
 	if(timeout_str != NULL)
 		cntd->timeout = atof(timeout_str);
 	else
@@ -143,7 +156,7 @@ static void read_env()
 	if(str_to_bool(barrier_str))
 		cntd->barrier = TRUE;
 
-	if(str_to_bool(andante_str) ||
+	if(str_to_bool(andante_str) ||  
 		 str_to_bool(adagio_str) ||
 		 str_to_bool(andante_analysis_str) ||
 		 str_to_bool(adagio_analysis_str))
@@ -216,6 +229,7 @@ static void read_env()
 		cntd->debug_metrics = TRUE;
 }
 
+//初始化的节点内的
 static void init_local_masters()
 {
 	int i;
@@ -255,7 +269,7 @@ static void init_local_masters()
 			cntd->last_batch_sockets[i].num_samples = 1;
 		}
 
-		// Enable socket perf counters
+		// Enable socket perf counters 开启socket的perf，这里有个问题。支持双sockets吗？
 		enable_pcu();
 		enable_uncore_freq();
 
@@ -288,7 +302,7 @@ static void init_local_masters()
 	if(cntd->my_local_rank != CNTD_MPI_ROOT && cntd->time_trace)
 		open_time_trace_file("a+");
 
-	// Attach shared memory
+	// Attach shared memory 分配内存
 	cntd->shmem_local_rank = (CNTD_Rank_t **) malloc(sizeof(CNTD_Rank_t *) * cntd->local_size);
 	for(i = 0; i < cntd->local_size; i++)
 	{
@@ -297,29 +311,30 @@ static void init_local_masters()
 	}
 	cntd->cpu = get_shmem_cpu("/cntd_cpus");
 	cntd->socket = get_shmem_socket("/cntd_sockets");
+	//批量处理的最后一次的rank和cpu
 	cntd->last_batch_ranks = get_shmem_rank("/cntd_last_batch_local_ranks", cntd->local_size);
 	cntd->last_batch_cpus = get_shmem_cpu("/cntd_last_batch_cpus");
 	cntd->last_batch_sockets = get_shmem_socket("/cntd_last_batch_sockets");
 
 	PMPI_Barrier(MPI_COMM_WORLD);
 
-	// Batch initialization
+	// Batch initialization 初始化篇批量读取msr的操作，这里先记录时间
 	if(cntd->my_local_rank == CNTD_MPI_ROOT && cntd->time_trace)
 		print_label_time_trace_file();
 
-	// Turbo conf discovery
+	// Turbo conf discovery  turbo的设置读取
 	read_arch_turbo_info();
 
 	PMPI_Barrier(MPI_COMM_WORLD);
 
-	// Make first trace time
+	// Make first trace time 
 	if(cntd->my_local_rank == CNTD_MPI_ROOT)
 	{
 		do_batch();
 		update_last_batch(0);
 	}
 
-	// Synchronization for process timers
+	// Synchronization for process timers cpu时间同步
 	PMPI_Barrier(MPI_COMM_WORLD);
 	makeTimer(&cntd->time_trace_timer, cntd->my_local_rank + DEFAULT_TIME_TRACE_TIMER, cntd->local_size * DEFAULT_TIME_TRACE_TIMER);
 }
@@ -345,13 +360,13 @@ static void finalize_local_masters()
 
 static void init_cntd()
 {
-	// Bind process to the core
+	// Bind process to the core 将进程绑定到各个core中去
 	cpu_set_t cpu_set;
 	CPU_ZERO(&cpu_set);
 	CPU_SET(sched_getcpu(), &cpu_set);
 	sched_setaffinity(0, sizeof(cpu_set_t), &cpu_set);
 
-	// Allocate COUNTDOWN struct
+	// Allocate COUNTDOWN struct 为countdown的数据结构分配内存
 	cntd = (CNTD_t *) calloc(1, sizeof(CNTD_t));
 
 	PMPI_Barrier(MPI_COMM_WORLD);
@@ -362,7 +377,7 @@ static void init_cntd()
 	}
 
 	PMPI_Barrier(MPI_COMM_WORLD);
-
+	
 	cntd->curr_call = 0;
 	cntd->prev_call = 1;
 
@@ -375,7 +390,7 @@ static void init_structs()
 	int lengh_size;
 	char shmem_name[STRING_SIZE];
 
-	// Communicators
+	// Communicators 初始化通信体的数据结构
 	cntd->comm = (CNTD_Comm_t *) malloc(MEM_SIZE * sizeof(CNTD_Comm_t));
 	if(cntd->comm == NULL)
 	{
@@ -384,7 +399,7 @@ static void init_structs()
 	}
 	cntd->comm_mem_limit = MEM_SIZE;
 
-	// Groups
+	// Groups 自定义分组的通信域
 	cntd->group = (CNTD_Group_t *) malloc(MEM_SIZE * sizeof(CNTD_Group_t));
 	if(cntd->group == NULL)
 	{
@@ -393,12 +408,13 @@ static void init_structs()
 	}
 	cntd->group_mem_limit = MEM_SIZE;
 
-	// Create local communicators and master communicators
+	// Create local communicators and master communicators 将通信域分割为各个节点上的子通信域
+	//并且通过hostname为依据进行分割，或者是每多少个核心进行一次子域划分。这样必须严格按照核心绑定
 	PMPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &cntd->comm_local_procs);
 	PMPI_Comm_rank(cntd->comm_local_procs, &cntd->my_local_rank);
 	PMPI_Comm_split(MPI_COMM_WORLD, cntd->my_local_rank, 0, &cntd->comm_local_masters);
 
-	// Ranks
+	// Ranks 输出本地的rank
 	snprintf(shmem_name, sizeof(shmem_name), "/cntd_local_rank_%d", cntd->my_local_rank);
 	cntd->rank = create_shmem_rank(shmem_name, 1);
 	PMPI_Comm_rank(MPI_COMM_WORLD, &cntd->rank->my_rank);
@@ -407,6 +423,7 @@ static void init_structs()
 	PMPI_Comm_size(MPI_COMM_WORLD, &cntd->rank->size);
 	PMPI_Comm_size(cntd->comm_local_procs, &cntd->local_size);
 	cntd->rank->phase = APP;
+	//默认初试的阶段就是APP程序计算段。后面进行MPI通信的劫持，之后进行倒计时和call调用
 
 	read_arch_info();
 	cntd->rank->epoch[START] = 0;
@@ -436,7 +453,7 @@ static void finalize_structs()
 	free(cntd->comm);
 	free(cntd->group);
 }
-
+//初始化监控，
 static void init_monitor()
 {
 	CNTD_Call_t *prev_call = &cntd->call[cntd->prev_call];
@@ -513,18 +530,20 @@ void stop_cntd()
 	finalize_structs();
 }
 
+//预调用？ 
 void call_pre_start(MPI_Type_t mpi_type, MPI_Comm comm, int addr)
 {
 	if(cntd->barrier)
 		add_barrier(mpi_type, comm, addr);
 }
-
+//使用调用，加入
 void call_start(CNTD_Call_t *call)
 {
+	// 首先rank的状态是MPI
 	cntd->rank->phase = MPI;
-
+	//
 	add_profiling(call, START);
-
+	//这里是cntd 的算法选择
 	if(cntd->eam_slack || cntd->eam_slack_analysis)
 		eam_slack_pre_mpi(call);
 	else if(cntd->eam_call || cntd->eam_call_analysis)

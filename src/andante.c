@@ -67,7 +67,7 @@ void andante_finalize()
 		reset_tstate();
 	}
 }
-
+//通过历史信息来进行频率调节
 static int isnew(int id, int where)
 {
   int i;
@@ -196,7 +196,7 @@ static double andante_update_profiling(CNTD_Call_t *call, int sched, int task_id
   return mpi_slack;
 }
 
-// Generate the schedule for the next execution of this task
+// Generate the schedule for the next execution of this task 为任务的下一次执行生成调度规则
 int andante_post_task(CNTD_Call_t *call, int prev_task_id)
 {
   if(call->mpi_type == __MPI_INIT)

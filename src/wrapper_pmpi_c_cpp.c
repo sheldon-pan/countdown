@@ -29,7 +29,9 @@
  *
  * Author: Daniele Cesarini, University of Bologna
 */
-
+//这个文件提供了MPI的替换h
+//使用wrap生成替换也可以，然后直接复用也可以
+//对于每一种调用，需要加入其计数，然后在关键路径上，对于特定的编号的MPI调用，跳过定时
 #include "cntd.h"
 
 int MPI_Abort(MPI_Comm comm, int errorcode)

@@ -31,7 +31,7 @@
 */
 
 #include "cntd.h"
-
+//batch.c文件是批量读取CPU的MSR信息
 
 void init_batch_cpu(int batch, CNTD_Batch_Cpu_t *cpu)
 {
@@ -133,7 +133,7 @@ void callback_batch(int sig, siginfo_t *si, void *uc)
 	update_last_batch(epoch);
 }
 
-// Make a time trace
+// Make a time trace 记录时间
 double do_batch()
 {
   struct timespec epoch;
